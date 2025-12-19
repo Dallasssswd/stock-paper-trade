@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Paper Trader</title>
+<style>
+:root { color-scheme: dark; }
+body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b0f14; color:#e7eef7; }
+header { padding:16px 18px; border-bottom:1px solid #1e2a36; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+header h1 { font-size:16px; margin:0; letter-spacing:.4px; }
+.wrap { max-width:1100px; margin:0 auto; padding:16px; display:grid; grid-template-columns: 1.15fr .85fr; gap:16px; }
+.card { background:#0f1620; border:1px solid #1e2a36; border-radius:12px; padding:14px; }
+.row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.row > * { flex: 1 1 auto; }
+label { font-size:12px; opacity:.85; display:block; margin-bottom:6px; }
+input, select, button { width:100%; padding:10px 10px; border-radius:10px; border:1px solid #233140; background:#0b111a; color:#e7eef7; }
+button { cursor:pointer; border:1px solid #2b4056; background:#102033; }
+button:hover { filter:brightness(1.08); }
+button.danger { background:#2a1212; border-color:#5a2b2b; }
+.kpi { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
+.kpi .box { background:#0b111a; border:1px solid #233140; border-radius:12px; padding:10px; }
+.kpi .v { font-size:18px; font-weight:700; margin-top:4px; }
+.muted { opacity:.75; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th, td { border-bottom:1px solid #1e2a36; padding:10px 6px; text-align:left; }
+th { font-size:12px; opacity:.8; }
+.pill { display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #2b4056; background:#0b111a; font-size:12px; }
+.ok { border-color:#2a5; }
+.bad { border-color:#a44; }
+.grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+.small { font-size:12px; }
+.right { text-align:right; }
+.btnRow { display:flex; gap:10px; }
+.btnRow button { flex:1; }
+.footerNote { padding:0 16px 18px; max-width:1100px; margin:0 auto; opacity:.7; font-size:12px; }
+@media (max-width: 940px){ .wrap{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+<div class="row" style="gap:10px; align-items:baseline;">
+<h1>📈 Paper Trader</h1>
+<span class="pill" id="userPill">User: …</span>
+<span class="pill" id="apiPill">API: Not set</span>
+</div>
+<div class="row" style="gap:10px;">
+<button id="refreshBtn" title="Refresh quotes (watchlist + holdings)">Refresh Quotes</button>
+<button class="danger" id="resetBtn" title="Reset everything">Reset</button>
+</div>
+</header>
+
+<div class="wrap">
+<!-- LEFT -->
+<div class="card">
+<h2 style="margin:0 0 10px 0; font-size:14px;">Portfolio</h2>
+
+<div class="kpi">
+<div class="box">
+<div class="muted small">Cash</div>
+<div class="v" id="cashKpi">$0.00</div>
+</div>
+<div class="box">
+<div class="muted small">Holdings Value</div>
+<div class="v" id="holdingsKpi">$0.00</div>
+</div>
+<div class="box">
+<div class="muted small">Total Equity</div>
+<div class="v" id="equityKpi">$0.00</div>
+</div>
+</div>
+
+<div style="height:12px;"></div>
+
+<div class="grid2">
+<div>
+<h3 style="margin:0 0 8px 0; font-size:13px;">Place Order</h3>
+<div class="row">
+<div>
+<label>Asset</label>
+<select id="assetSel">
+<option value="STOCK">US Stock/ETF</option>
+<option value="CRYPTO">Crypto</option>
+</select>
+</div>
+<div>
+<label>Shares / Units</label>
+<input id="sharesInp" type="number" min="0.0001" step="0.0001" value="1" />
+</div>
+</div>
+
+<div class="row">
+<div>
+<label>Symbol</label>
+<input id="symbolInp" placeholder="AAPL or SPY" />
+</div>
+<div>
+<label>Side</label>
+<select id="sideSel">
+<option value="BUY">BUY</option>
+<option value="SELL">SELL</option>
+</select>
+</div>
+</div>
+
+<div class="row">
+<div>
+<label>Estimated Price</label>
+<input id="estPrice" disabled value="—" />
+</div>
+<div>
+<label>&nbsp;</label>
+<button id="quickCryptoBtn" title="Sets symbol to BINANCE:BTCUSDT">Quick BTC</button>
+</div>
+</div>
+
+<div class="btnRow">
+<button id="previewBtn">Preview</button>
+<button id="submitBtn">Submit</button>
+</div>
+<p class="small muted" id="orderMsg" style="margin:8px 0 0 0;">
+For crypto, use symbols like <span class="pill">BINANCE:BTCUSDT</span>. [oai_citation:2‡Finnhub](https://finnhub.io/docs/api/crypto-symbols?utm_source=chatgpt.com)
+</p>
+</div>
+
+<div>
+<h3 style="margin:0 0 8px 0; font-size:13px;">Settings</h3>
+<div class="row">
+<div>
+<label>Starting Cash</label>
+<input id="startCashInp" type="number" min="0" step="1000" value="100000" />
+</div>
+</div>
+<div class="row">
+<div>
+<label>Finnhub API Key</label>
+<input id="apiKeyInp" placeholder="Paste key here (stored in your browser)" />
+</div>
+</div>
+<div class="btnRow">
+<button id="applySettingsBtn">Apply</button>
+<button id="seedWatchBtn" title="Adds US stocks + crypto">Add Sample Watchlist</button>
+</div>
+<p class="small muted" style="margin:8px 0 0 0;">
+Quotes use Finnhub <span class="pill">/quote</span> (c=current price). [oai_citation:3‡Finnhub](https://finnhub.io/docs/api/quote?utm_source=chatgpt.com)
+</p>
+</div>
+</div>
+
+<div style="height:14px;"></div>
+
+<h3 style="margin:0 0 8px 0; font-size:13px;">Holdings</h3>
+<div style="overflow:auto;">
+<table id="holdingsTable">
+<thead>
+<tr>
+<th>Symbol</th>
+<th class="right">Units</th>
+<th class="right">Avg Cost</th>
+<th class="right">Last</th>
+<th class="right">Value</th>
+<th class="right">P/L</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+<div style="height:14px;"></div>
+
+<h3 style="margin:0 0 8px 0; font-size:13px;">Trade History</h3>
+<div style="overflow:auto;">
+<table id="tradesTable">
+<thead>
+<tr>
+<th>Time</th>
+<th>Side</th>
+<th>Symbol</th>
+<th class="right">Units</th>
+<th class="right">Price</th>
+<th class="right">Total</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+</div>
+
+<!-- RIGHT -->
+<div class="card">
+<h2 style="margin:0 0 10px 0; font-size:14px;">Watchlist</h2>
+
+<div class="row">
+<div>
+<label>Add symbol (AAPL / SPY / BINANCE:ETHUSDT)</label>
+<input id="watchInp" placeholder="TSLA" />
+</div>
+<div style="flex:0 0 140px;">
+<label>&nbsp;</label>
+<button id="addWatchBtn">Add</button>
+</div>
+</div>
+
+<div style="height:10px;"></div>
+
+<div style="overflow:auto;">
+<table id="watchTable">
+<thead>
+<tr>
+<th>Symbol</th>
+<th class="right">Last</th>
+<th class="right">Prev Close</th>
+<th class="right">Change</th>
+<th></th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+<div style="height:10px;"></div>
+<p class="small muted">
+If you refresh too fast you may get <span class="pill">429</span> due to rate limits. [oai_citation:4‡Finnhub](https://finnhub.io/docs/api/rate-limit?utm_source=chatgpt.com)
+</p>
+</div>
+</div>
+
+<div class="footerNote">
+Saves state in your browser (cookie creates a “user id”; data stored in localStorage). Clearing site data resets.
+</div>
+
+<script>
+/** Cookie + Storage */
+function setCookie(name, value, days=365) {
+const expires = new Date(Date.now() + days*864e5).toUTCString();
+document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+}
+function getCookie(name) {
+return document.cookie.split('; ').reduce((r, v) => {
+const parts = v.split('=');
+return parts[0] === encodeURIComponent(name) ? decodeURIComponent(parts[1]) : r;
+}, '');
+}
+function uid() { return 'u_' + Math.random().toString(16).slice(2) + '_' + Date.now().toString(16); }
+
+const COOKIE_USER = 'papertrade_user';
+let userId = getCookie(COOKIE_USER);
+if (!userId) { userId = uid(); setCookie(COOKIE_USER, userId); }
+
+const LS_KEY = () => `papertrade_state_${userId}_v2`;
+
+const defaultState = () => ({
+apiKey: "",
+cash: 100000,
+startingCash: 100000,
+positions: {}, // symbol -> { units, avgCost }
+trades: [],
+watchlist: ["AAPL","MSFT","SPY","BINANCE:BTCUSDT","BINANCE:ETHUSDT"],
+quotes: {}
+});
+
+function loadState() {
+try {
+const raw = localStorage.getItem(LS_KEY());
+if (!raw) return defaultState();
+const parsed = JSON.parse(raw);
+return { ...defaultState(), ...parsed };
+} catch {
+return defaultState();
+}
+}
+function saveState() { localStorage.setItem(LS_KEY(), JSON.stringify(state)); }
+let state = loadState();
+
+/** Finnhub Quote
+* Docs: /api/v1/quote [oai_citation:5‡Finnhub](https://finnhub.io/docs/api/quote?utm_source=chatgpt.com)
+* Crypto symbols list: /crypto/symbol [oai_citation:6‡Finnhub](https://finnhub.io/docs/api/crypto-symbols?utm_source=chatgpt.com)
+*/
+async function fetchQuote(symbol) {
+if (!state.apiKey) throw new Error("API key not set");
+const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(state.apiKey)}`;
+const res = await fetch(url);
+if (!res.ok) throw new Error(`Quote error (${res.status})`);
+const data = await res.json();
+if (typeof data.c !== 'number') throw new Error("Bad quote response");
+return data;
+}
+
+// simple throttle to be nicer to rate limits
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+function money(n) {
+const x = Number(n);
+if (!Number.isFinite(x)) return "—";
+return x.toLocaleString(undefined, { style:'currency', currency:'USD' });
+}
+function num(n, digits=2){
+const x = Number(n);
+if (!Number.isFinite(x)) return "—";
+return x.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits });
+}
+function cleanSymbol(s){ return (s||"").trim().toUpperCase(); }
+function nowStr(){ return new Date().toLocaleString(); }
+
+/** UI refs */
+const userPill = document.getElementById('userPill');
+const apiPill = document.getElementById('apiPill');
+userPill.textContent = `User: ${userId.slice(0,8)}…`;
+
+const cashKpi = document.getElementById('cashKpi');
+const holdingsKpi = document.getElementById('holdingsKpi');
+const equityKpi = document.getElementById('equityKpi');
+
+const holdingsBody = document.querySelector('#holdingsTable tbody');
+const tradesBody = document.querySelector('#tradesTable tbody');
+const watchBody = document.querySelector('#watchTable tbody');
+
+const assetSel = document.getElementById('assetSel');
+const symbolInp = document.getElementById('symbolInp');
+const sharesInp = document.getElementById('sharesInp');
+const sideSel = document.getElementById('sideSel');
+const estPrice = document.getElementById('estPrice');
+const orderMsg = document.getElementById('orderMsg');
+
+const apiKeyInp = document.getElementById('apiKeyInp');
+const startCashInp = document.getElementById('startCashInp');
+
+/** Render */
+function calcHoldingsValue() {
+let total = 0;
+for (const [sym, pos] of Object.entries(state.positions)) {
+const q = state.quotes[sym];
+const last = q?.c;
+if (Number.isFinite(last)) total += pos.units * last;
+}
+return total;
+}
+
+function renderKPIs() {
+const hv = calcHoldingsValue();
+const eq = state.cash + hv;
+cashKpi.textContent = money(state.cash);
+holdingsKpi.textContent = money(hv);
+equityKpi.textContent = money(eq);
+}
+
+function renderHoldings() {
+holdingsBody.innerHTML = "";
+const entries = Object.entries(state.positions)
+.filter(([,p]) => p.units > 0)
+.sort((a,b) => a[0].localeCompare(b[0]));
+
+if (entries.length === 0) {
+const tr = document.createElement('tr');
+tr.innerHTML = `<td colspan="6" class="muted">No holdings yet.</td>`;
+holdingsBody.appendChild(tr);
+return;
+}
+
+for (const [sym, pos] of entries) {
+const q = state.quotes[sym];
+const last = q?.c;
+const value = Number.isFinite(last) ? pos.units * last : NaN;
+const pl = Number.isFinite(last) ? (last - pos.avgCost) * pos.units : NaN;
+const plClass = Number.isFinite(pl) ? (pl >= 0 ? "ok" : "bad") : "";
+
+const tr = document.createElement('tr');
+tr.innerHTML = `
+<td>${sym}</td>
+<td class="right">${num(pos.units, 6).replace(/\.?0+$/,'')}</td>
+<td class="right">${money(pos.avgCost)}</td>
+<td class="right">${money(last)}</td>
+<td class="right">${money(value)}</td>
+<td class="right"><span class="pill ${plClass}">${money(pl)}</span></td>
+`;
+holdingsBody.appendChild(tr);
+}
+}
+
+function renderTrades() {
+tradesBody.innerHTML = "";
+if (state.trades.length === 0) {
+const tr = document.createElement('tr');
+tr.innerHTML = `<td colspan="6" class="muted">No trades yet.</td>`;
+tradesBody.appendChild(tr);
+return;
+}
+const rows = [...state.trades].slice().reverse();
+for (const t of rows) {
+const pillClass = t.side === "BUY" ? "ok" : "bad";
+const tr = document.createElement('tr');
+tr.innerHTML = `
+<td class="muted">${t.time}</td>
+<td><span class="pill ${pillClass}">${t.side}</span></td>
+<td>${t.symbol}</td>
+<td class="right">${num(t.units, 6).replace(/\.?0+$/,'')}</td>
+<td class="right">${money(t.price)}</td>
+<td class="right">${money(t.total)}</td>
+`;
+tradesBody.appendChild(tr);
+}
+}
+
+function renderWatchlist() {
+watchBody.innerHTML = "";
+const list = [...new Set(state.watchlist.map(cleanSymbol))].filter(Boolean);
+state.watchlist = list;
+
+if (list.length === 0) {
+const tr = document.createElement('tr');
+tr.innerHTML = `<td colspan="5" class="muted">Empty watchlist.</td>`;
+watchBody.appendChild(tr);
+return;
+}
+
+for (const sym of list) {
+const q = state.quotes[sym];
+const last = q?.c;
+const pc = q?.pc;
+const d = q?.d;
+const pillClass = Number.isFinite(d) ? (d >= 0 ? "ok" : "bad") : "";
+
+const tr = document.createElement('tr');
+tr.innerHTML = `
+<td>${sym}</td>
+<td class="right">${money(last)}</td>
+<td class="right">${money(pc)}</td>
+<td class="right"><span class="pill ${pillClass}">${num(d,2)}</span></td>
+<td class="right"><button data-del="${sym}" style="width:auto; padding:6px 10px;">✕</button></td>
+`;
+watchBody.appendChild(tr);
+}
+
+watchBody.querySelectorAll('button[data-del]').forEach(btn => {
+btn.addEventListener('click', () => {
+const s = btn.getAttribute('data-del');
+state.watchlist = state.watchlist.filter(x => x !== s);
+saveState(); renderAll();
+});
+});
+}
+
+function renderAll() {
+apiPill.textContent = state.apiKey ? "API: Set" : "API: Not set";
+apiPill.className = "pill " + (state.apiKey ? "ok" : "bad");
+apiKeyInp.value = state.apiKey || "";
+startCashInp.value = state.startingCash ?? 100000;
+
+renderKPIs();
+renderHoldings();
+renderTrades();
+renderWatchlist();
+}
+
+/** Actions */
+async function refreshQuotes() {
+if (!state.apiKey) { orderMsg.textContent = "Set your Finnhub API key in Settings first."; return; }
+
+const symbols = new Set([...Object.keys(state.positions), ...state.watchlist]);
+orderMsg.textContent = `Refreshing ${symbols.size} symbol(s)…`;
+
+let ok = 0, fail = 0;
+for (const sym of symbols) {
+try {
+const q = await fetchQuote(sym);
+state.quotes[sym] = q;
+ok++;
+// tiny delay to be nicer to rate limits
+await sleep(120);
+} catch (e) {
+fail++;
+console.warn(sym, e);
+}
+}
+saveState();
+renderAll();
+
+orderMsg.textContent = fail
+? `Quotes updated (${ok} ok, ${fail} failed). If you see 429, refresh less.`
+: "Quotes updated.";
+}
+
+async function previewOrder() {
+const sym = cleanSymbol(symbolInp.value);
+if (!sym) { orderMsg.textContent = "Enter a symbol (AAPL or BINANCE:BTCUSDT)."; return; }
+if (!state.apiKey) { orderMsg.textContent = "Set your Finnhub API key first."; return; }
+
+orderMsg.textContent = `Fetching price for ${sym}…`;
+try {
+const q = await fetchQuote(sym);
+state.quotes[sym] = q;
+saveState();
+estPrice.value = money(q.c);
+orderMsg.textContent = `Price loaded: ${sym} @ ${money(q.c)} (market).`;
+renderAll();
+} catch (e) {
+orderMsg.textContent = `Couldn’t fetch quote for ${sym}. Check symbol + key.`;
+}
+}
+
+function placeOrder() {
+const sym = cleanSymbol(symbolInp.value);
+const units = Number(sharesInp.value);
+const side = sideSel.value;
+
+if (!sym) { orderMsg.textContent = "Enter a symbol."; return; }
+if (!Number.isFinite(units) || units <= 0) { orderMsg.textContent = "Units must be > 0."; return; }
+
+const q = state.quotes[sym];
+const price = q?.c;
+if (!Number.isFinite(price)) { orderMsg.textContent = "Hit Preview first so we have a live price."; return; }
+
+const totalAbs = price * units;
+
+if (side === "BUY") {
+if (state.cash < totalAbs) { orderMsg.textContent = "Not enough cash for that buy."; return; }
+state.cash -= totalAbs;
+
+const pos = state.positions[sym] || { units: 0, avgCost: 0 };
+const newUnits = pos.units + units;
+const newAvg = ((pos.avgCost * pos.units) + totalAbs) / newUnits;
+state.positions[sym] = { units: newUnits, avgCost: newAvg };
+
+} else {
+const pos = state.positions[sym];
+if (!pos || pos.units < units) { orderMsg.textContent = "Not enough units to sell."; return; }
+pos.units -= units;
+state.cash += totalAbs;
+if (pos.units <= 1e-12) delete state.positions[sym];
+}
+
+state.trades.push({
+time: nowStr(),
+side, symbol: sym, units, price,
+total: (side === "BUY" ? -totalAbs : totalAbs)
+});
+
+if (!state.watchlist.includes(sym)) state.watchlist.push(sym);
+
+saveState();
+renderAll();
+orderMsg.textContent = `${side} filled: ${num(units, 6).replace(/\.?0+$/,'')} ${sym} @ ${money(price)}.`;
+}
+
+function applySettings() {
+const apiKey = (apiKeyInp.value || "").trim();
+const startingCash = Number(startCashInp.value);
+
+if (!Number.isFinite(startingCash) || startingCash < 0) {
+orderMsg.textContent = "Starting cash must be 0 or more.";
+return;
+}
+
+if (state.trades.length === 0) state.cash = startingCash;
+state.startingCash = startingCash;
+state.apiKey = apiKey;
+
+saveState();
+renderAll();
+orderMsg.textContent = "Settings saved.";
+}
+
+function addWatch() {
+const sym = cleanSymbol(document.getElementById('watchInp').value);
+if (!sym) return;
+if (!state.watchlist.includes(sym)) state.watchlist.push(sym);
+document.getElementById('watchInp').value = "";
+saveState();
+renderAll();
+}
+
+function seedWatch() {
+const sample = ["NVDA","AMZN","GOOGL","META","SPY","QQQ","BINANCE:BTCUSDT","BINANCE:ETHUSDT"];
+for (const s of sample) if (!state.watchlist.includes(s)) state.watchlist.push(s);
+saveState(); renderAll();
+}
+
+function resetAll() {
+if (!confirm("Reset all paper trading data for this browser user?")) return;
+state = defaultState();
+saveState();
+renderAll();
+estPrice.value = "—";
+orderMsg.textContent = "Reset complete.";
+}
+
+/** Wire up */
+document.getElementById('refreshBtn').addEventListener('click', refreshQuotes);
+document.getElementById('previewBtn').addEventListener('click', previewOrder);
+document.getElementById('submitBtn').addEventListener('click', placeOrder);
+document.getElementById('applySettingsBtn').addEventListener('click', applySettings);
+document.getElementById('addWatchBtn').addEventListener('click', addWatch);
+document.getElementById('seedWatchBtn').addEventListener('click', seedWatch);
+document.getElementById('resetBtn').addEventListener('click', resetAll);
+
+document.getElementById('quickCryptoBtn').addEventListener('click', () => {
+assetSel.value = "CRYPTO";
+symbolInp.value = "BINANCE:BTCUSDT";
+orderMsg.textContent = "Set to BINANCE:BTCUSDT. Hit Preview.";
+});
+
+// Little UX: auto placeholder based on asset type
+assetSel.addEventListener('change', () => {
+if (assetSel.value === "CRYPTO") {
+symbolInp.placeholder = "BINANCE:BTCUSDT";
+} else {
+symbolInp.placeholder = "AAPL or SPY";
+}
+});
+
+symbolInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') previewOrder(); });
+document.getElementById('watchInp').addEventListener('keydown', (e) => { if (e.key === 'Enter') addWatch(); });
+
+renderAll();
+</script>
+</body>
+</html>
